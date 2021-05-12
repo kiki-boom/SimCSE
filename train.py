@@ -66,17 +66,23 @@ def get_format_fun(batch_size, sequence_length):
 
 
 def load_dataset(args):
-    data = load_data(args.input_file)
+    delimiter = delimiters[args.task]
+    all_data = {
+        "%s-%s" % (args.task, f):
+        load_csv_data("%s/%s/%s.csv" % (args.data_dir, args.task, f), delimiter)
+        for f in ["train", "dev", "test"]
+    }
     tokenizer = tokenization.FullTokenizer(args.vocab_file)
     idses = []
     masks = []
-    for d0, d1, l in data:
-        token_ids, mask = convert_to_ids(d0, tokenizer, args.max_sequence_length)
-        idses.append(token_ids)
-        masks.append(mask)
-        token_ids, mask = convert_to_ids(d1, tokenizer, args.max_sequence_length)
-        idses.append(token_ids)
-        masks.append(mask)
+    for task_name, data in all_data.items():
+        for d0, d1, l in data:
+            token_ids, mask = convert_to_ids(d0, tokenizer, args.max_sequence_length)
+            idses.append(token_ids)
+            masks.append(mask)
+            token_ids, mask = convert_to_ids(d1, tokenizer, args.max_sequence_length)
+            idses.append(token_ids)
+            masks.append(mask)
     dataset = tf.data.Dataset.from_tensor_slices((idses, masks))
     dataset = dataset.batch(args.batch_size).map(
         get_format_fun(args.batch_size, args.max_sequence_length)
@@ -108,8 +114,10 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input_file", type=str, required=True,
+    parser.add_argument("--data_dir", type=str, required=True,
                         help="Input dir for training data")
+    parser.add_argument("--task", type=str, required=True,
+                        help="Task name")
     parser.add_argument("--model_dir", type=str, required=True,
                         help="The dir where to save model weights")
     parser.add_argument("--bert_ckpt", type=str,

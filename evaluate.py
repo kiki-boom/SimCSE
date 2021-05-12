@@ -18,6 +18,21 @@ def compute_corrcoef(x, y):
     return scipy.stats.spearmanr(x, y).correlation
 
 
+def encode(texts, tokenizer, max_sequence_length, model):
+    def _format_fun(_ids, _mask, _segment):
+        return (_ids, _mask, _segment), 0
+    ids, masks = [], []
+    for text in texts:
+        token_ids, mask = convert_to_ids(text, tokenizer, max_sequence_length)
+        ids.append(token_ids)
+        masks.append(mask)
+    segment_ids = np.zeros_like(ids)
+    dataset = tf.data.Dataset.from_tensor_slices((ids, masks, segment_ids))
+    dataset = dataset.map(_format_fun).batch(32)
+    vecs = model.predict(dataset)
+    return vecs
+
+
 def similarity(d0, d1, tokenizer, max_sequence_length, model):
     token_ids0, mask0 = convert_to_ids(d0, tokenizer, max_sequence_length)
     token_ids1, mask1 = convert_to_ids(d1, tokenizer, max_sequence_length)
@@ -31,18 +46,25 @@ def similarity(d0, d1, tokenizer, max_sequence_length, model):
 
 
 def evaluate(args):
+    all_data = {
+        "%s-%s" % (args.task, f):
+        load_data("%s/%s/%s" % (args.data_dir, args.task, f))
+        for f in ["train", "dev", "test"]
+    }
+
     model = tf.keras.models.load_model(args.model_dir)
     tokenizer = tokenization.FullTokenizer(args.vocab_file)
     max_len = args.max_sequence_length
-    data = load_data(args.input_file)
-    sims = []
-    labels = []
-    for d0, d1, l in data:
-        sim = similarity(d0, d1, tokenizer, max_len, model)
-        sims.append(sim)
-        labels.append(l)
-    corrcoef = compute_corrcoef(labels, sims)
-    print(corrcoef)
+
+    for name, data in all_data.items():
+        vecs0 = encode([d0 for d0, _, _ in data], tokenizer, max_len, model)
+        vecs1 = encode([d1 for _, d1, _ in data], tokenizer, max_len, model)
+        labels = [l for _, _, l in data]
+        vecs0 = l2_normalize(vecs0)
+        vecs1 = l2_normalize(vecs1)
+        sims = (vecs0 * vecs1).sum(axis=1)
+        corrcoef = compute_corrcoef(labels, sims)
+        print("%s: %s" % (name, corrcoef))
 
 
 if __name__ == "__main__":

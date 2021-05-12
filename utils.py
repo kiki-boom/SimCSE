@@ -1,3 +1,25 @@
+import csv
+
+delimiters = {
+    "ATEC_CCKS": "\t",
+    "BQ": ",",
+    "LCQMC": "\t",
+}
+
+
+def load_csv_data(filename, delimiter="\t"):
+    D = []
+    with open(filename, encoding="utf-8") as f:
+        f_csv = csv.reader(f, delimiter=delimiter)
+        line_num = 0
+        for row in f_csv:
+            line_num += 1
+            if line_num == 1:
+                continue
+            D.append((row[0], row[1], float(row[2])))
+    return D
+
+
 def load_data(filename):
     """加载数据（带标签）
     单条格式：(文本1, 文本2, 标签)
