@@ -1,5 +1,5 @@
 # KerasBert
-Implementation based on tensorflow2.4 of paper ‘‘SimCSE: Simple Contrastive Learning of Sentence Embeddings’’
+Implementation of paper ‘‘SimCSE: Simple Contrastive Learning of Sentence Embeddings’’ based on tensorflow2.4 
 
 ## Dependencies
 
