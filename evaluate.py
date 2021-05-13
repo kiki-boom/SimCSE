@@ -48,7 +48,7 @@ def similarity(d0, d1, tokenizer, max_sequence_length, model):
 def evaluate(args):
     all_data = {
         "%s-%s" % (args.task, f):
-        load_data("%s/%s/%s" % (args.data_dir, args.task, f))
+        load_csv_data("%s/%s/%s" % (args.data_dir, args.task, f))
         for f in ["train", "dev", "test"]
     }
 

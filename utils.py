@@ -20,16 +20,20 @@ def load_csv_data(filename, delimiter="\t"):
     return D
 
 
-def load_data(filename):
+def load_data(filename, header=False):
     """加载数据（带标签）
     单条格式：(文本1, 文本2, 标签)
     """
     D = []
     with open(filename, encoding='utf-8') as f:
-        for l in f:
+        if header:
+            _ = f.readline()
+        l = f.readline()
+        while l:
             l = l.strip().split('\t')
             if len(l) == 3:
                 D.append((l[0], l[1], float(l[2])))
+            l = f.readline()
     return D
 
 

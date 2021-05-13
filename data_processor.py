@@ -6,15 +6,16 @@ from pathlib import Path
 
 
 def create_int_features(values):
-    feature = tf.train.Features(int64_list=tf.train.Int64List(values=values))
+    feature = tf.train.Feature(int64_list=tf.train.Int64List(value=list(values)))
     return feature
 
 
 def create_tf_example(token_ids, mask):
-    tf_example = tf.train.Example(tf.train.Features(
-        {"token_ids": create_int_features(token_ids),
-         "mask": create_int_features(mask)}
-    ))
+    features = {
+        "token_ids": create_int_features(token_ids),
+        "mask": create_int_features(mask),
+    }
+    tf_example = tf.train.Example(features=tf.train.Features(feature=features))
     return tf_example
 
 
@@ -45,9 +46,9 @@ def write_to_tf_files(data, tokenizer, max_sequence_length, output_files):
         total_written += 1
         if total_written < 5:
             logging.info("*** Example ***")
-            dump_str0 = dump_feature(example0.features, tokenizer)
-            dump_str1 = dump_feature(example1.features, tokenizer)
-            logging.info("d0: %s\nd1: %s" % (dump_str0, dump_str1))
+            #dump_str0 = dump_feature(example0.features, tokenizer)
+            #dump_str1 = dump_feature(example1.features, tokenizer)
+            #logging.info("d0: %s\nd1: %s" % (dump_str0, dump_str1))
         if total_written % 500 == 0:
             logging.info("Writing example %d" % total_written)
 
@@ -85,10 +86,10 @@ def create_tf_record_dataset(args):
         if f.is_file():
             input_files.append(f)
 
-    tokenizer = tokenization.Tokenizer(args.vocab_file)
+    tokenizer = tokenization.FullTokenizer(args.vocab_file)
 
     for f in input_files:
-        data = load_data(str(f))
+        data = load_data(str(f), header=True)
         name = f.parts[-1]
         output_files = get_output_files(args.output_dir, name=name, num_writer=1)
         write_to_tf_files(data, tokenizer, args.max_sequence_length, output_files)

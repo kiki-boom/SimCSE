@@ -4,6 +4,8 @@ import logging
 from kerasbert import model_loader
 from config import encoder_config
 from utils import *
+from data_processor import *
+from pathlib import Path
 import tokenization
 
 import os
@@ -84,15 +86,24 @@ def load_dataset(args):
             idses.append(token_ids)
             masks.append(mask)
     dataset = tf.data.Dataset.from_tensor_slices((idses, masks))
-    dataset = dataset.batch(args.batch_size).map(
+    dataset = dataset.batch(args.batch_size, drop_remainder=True).map(
         get_format_fun(args.batch_size, args.max_sequence_length)
     ).unbatch()
     return dataset
 
 
+def load_tf_data(args):
+    input_files = [str(f) for f in Path(args.data_dir).iterdir()]
+    dataset = read_tf_record(input_files, args.max_sequence_length)
+    dataset = dataset.batch(args.batch_size, drop_remainder=True).map(
+        get_format_fun(args.batch_size, args.max_sequence_length)
+    ).unbatch()
+    return dataset
+
 def train(args):
     model = make_model(args)
-    dataset = load_dataset(args)
+    #dataset = load_dataset(args)
+    dataset = load_tf_data(args)
     dataset = dataset.batch(args.batch_size * 2)
     model.predict(dataset.take(1))
     init_model(model, args)
