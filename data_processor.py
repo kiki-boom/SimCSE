@@ -23,7 +23,7 @@ def dump_feature(features, tokenizer):
     dump_str = ""
     words = tokenizer.convert_ids_to_tokens(features["token_ids"].int64_list.value)
     dump_str += "words: " + " ".join(words) + "\n"
-    input_mask = features["input_mask"].int64_list.value
+    input_mask = features["mask"].int64_list.value
     dump_str += "mask: " + " ".join([str(v) for v in input_mask])
     return dump_str
 
@@ -46,10 +46,10 @@ def write_to_tf_files(data, tokenizer, max_sequence_length, output_files):
         total_written += 1
         if total_written < 5:
             logging.info("*** Example ***")
-            #dump_str0 = dump_feature(example0.features, tokenizer)
-            #dump_str1 = dump_feature(example1.features, tokenizer)
-            #logging.info("d0: %s\nd1: %s" % (dump_str0, dump_str1))
-        if total_written % 500 == 0:
+            dump_str0 = dump_feature(example0.features.feature, tokenizer)
+            dump_str1 = dump_feature(example1.features.feature, tokenizer)
+            logging.info("d0: %s\nd1: %s" % (dump_str0, dump_str1))
+        if total_written % 10000 == 0:
             logging.info("Writing example %d" % total_written)
 
     for writer in writers:
@@ -86,11 +86,14 @@ def create_tf_record_dataset(args):
         if f.is_file():
             input_files.append(f)
 
+    if not Path(args.output_dir).exists():
+        Path(args.output_dir).mkdir()
+
     tokenizer = tokenization.FullTokenizer(args.vocab_file)
 
     for f in input_files:
         data = load_data(str(f), header=True)
-        name = f.parts[-1]
+        name = f.stem
         output_files = get_output_files(args.output_dir, name=name, num_writer=1)
         write_to_tf_files(data, tokenizer, args.max_sequence_length, output_files)
 

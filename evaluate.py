@@ -1,14 +1,18 @@
 import tensorflow as tf
 import numpy as np
-import scipy
+import scipy.stats
 import tokenization
+from simcse_model import *
 from utils import *
+
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
 def l2_normalize(vecs):
     """标准化
     """
-    norms = np.linalg.norm(vecs, axis=1)
+    norms = np.linalg.norm(vecs, axis=1, keepdims=True)
     return vecs / np.clip(norms, 1e-8, np.inf)
 
 
@@ -26,7 +30,7 @@ def encode(texts, tokenizer, max_sequence_length, model):
         token_ids, mask = convert_to_ids(text, tokenizer, max_sequence_length)
         ids.append(token_ids)
         masks.append(mask)
-    segment_ids = np.zeros_like(ids)
+    segment_ids = np.zeros_like(ids, dtype=np.int32)
     dataset = tf.data.Dataset.from_tensor_slices((ids, masks, segment_ids))
     dataset = dataset.map(_format_fun).batch(32)
     vecs = model.predict(dataset)

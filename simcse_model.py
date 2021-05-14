@@ -2,6 +2,7 @@ import tensorflow as tf
 from kerasbert import bert_encoder_block
 
 
+@tf.keras.utils.register_keras_serializable(package="simcse")
 class SimCSEPool(tf.keras.models.Model):
     def __init__(self, encoder_config, **kwargs):
         super(SimCSEPool, self).__init__(**kwargs)
@@ -12,6 +13,7 @@ class SimCSEPool(tf.keras.models.Model):
         return pooler_output
 
 
+@tf.keras.utils.register_keras_serializable(package="simcse")
 class SimCSELastAvg(tf.keras.models.Model):
     def __init__(self, encoder_config, **kwargs):
         super(SimCSELastAvg, self).__init__(**kwargs)
@@ -24,6 +26,7 @@ class SimCSELastAvg(tf.keras.models.Model):
         return output
 
 
+@tf.keras.utils.register_keras_serializable(package="simcse")
 class SimCSEFirstLastAvg(tf.keras.models.Model):
     def __init__(self, encoder_config, **kwargs):
         super(SimCSELastAvg, self).__init__(**kwargs)
@@ -41,6 +44,7 @@ class SimCSEFirstLastAvg(tf.keras.models.Model):
         return output
 
 
+@tf.keras.utils.register_keras_serializable(package="simcse")
 class SimCSECLS(tf.keras.models.Model):
     def __init__(self, encoder_config, **kwargs):
         super(SimCSELastAvg, self).__init__(**kwargs)
@@ -52,12 +56,11 @@ class SimCSECLS(tf.keras.models.Model):
         return output
 
 
+@tf.keras.utils.register_keras_serializable(package="simcse")
 class SimLoss(tf.keras.losses.Loss):
-    """用于SimCSE训练的loss
-    """
-    def __init__(self, name="sim_loss"):
-        super(SimLoss, self).__init__(name=name)
-
+    def __init__(self, **kwargs):
+        super(SimLoss, self).__init__(**kwargs)
+        
     def call(self, y_true, y_pred):
         # 构造标签
         idxs = tf.range(0, tf.shape(y_pred)[0])
@@ -72,3 +75,6 @@ class SimLoss(tf.keras.losses.Loss):
         similarities = similarities * 20
         loss = tf.keras.losses.categorical_crossentropy(y_true, similarities, from_logits=True)
         return tf.reduce_mean(loss)
+    
+    def get_config(self):
+        return super(SimLoss, self).get_config()

@@ -1,15 +1,20 @@
 import tensorflow as tf
-import simcse_model
 import logging
 from kerasbert import model_loader
 from config import encoder_config
+from simcse_model import *
 from utils import *
-from data_processor import *
+from data_processor import read_tf_record
 from pathlib import Path
 import tokenization
 
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
+
+class CustomCheckpoint(tf.keras.callbacks.ModelCheckpoint):
+    def set_model(self, model):
+        self.model = model
 
 
 def make_model(args):
@@ -18,25 +23,25 @@ def make_model(args):
 
     assert args.pooling in ['first-last-avg', 'last-avg', 'cls', 'pooler']
     if args.pooling == "pooler":
-        model = simcse_model.SimCSEPool(
+        model = SimCSEPool(
             encoder_config=encoder_config,
         )
     elif args.pooling == "last_avg":
-        model = simcse_model.SimCSELastAvg(
+        model = SimCSELastAvg(
             encoder_config=encoder_config,
         )
     elif args.pooling == "last_first_avg":
-        model = simcse_model.SimCSEFirstLastAvg(
+        model = SimCSEFirstLastAvg(
             encoder_config=encoder_config,
         )
     elif args.pooling == "cls":
-        model = simcse_model.SimCSECLS(
+        model = SimCSECLS(
             encoder_config=encoder_config,
         )
 
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=args.lr),
-        loss=simcse_model.SimLoss(),
+        loss=SimLoss(name="sim_loss"),
     )
     return model
 
@@ -51,6 +56,18 @@ def init_model(model, args):
         model_loader.load_block_weights_from_official_checkpoint(
             model.encoder, encoder_config, args.bert_ckpt
         )
+
+
+def create_or_restore_model(args):
+    checkpoints = [d for d in Path(args.model_dir).glob("ckpt_*")]
+    if checkpoints:
+        latest_checkpoit = max(checkpoints, key=lambda p: p.stat().st_mtime)
+        logging.info("Restoring from", str(latest_checkpoit))
+        return tf.keras.models.load_model(latest_checkpoit)
+
+    logging.info("Creating a new model")
+    model = make_model(args)
+    return model
 
 
 def get_format_fun(batch_size, sequence_length):
@@ -100,14 +117,22 @@ def load_tf_data(args):
     ).unbatch()
     return dataset
 
+
 def train(args):
-    model = make_model(args)
+    model = create_or_restore_model(args)
     #dataset = load_dataset(args)
     dataset = load_tf_data(args)
     dataset = dataset.batch(args.batch_size * 2)
-    model.predict(dataset.take(1))
-    init_model(model, args)
+    if not model.built:
+        model.predict(dataset.take(1))
+        init_model(model, args)
     callbacks = [
+        CustomCheckpoint(
+            filepath=args.model_dir + "ckpt_{epoch}_{loss:.4f}",
+            save_best_only=True,
+            monitor="loss",
+            mode="min",
+        ),
         tf.keras.callbacks.TensorBoard(
             log_dir="./logs",
             histogram_freq=0,
@@ -118,7 +143,7 @@ def train(args):
     model.fit(dataset,
               epochs=args.epochs,
               callbacks=callbacks)
-    model.save(args.model_dir)
+    model.save(args.model_dir + "ckpt_latest")
 
 
 if __name__ == "__main__":
